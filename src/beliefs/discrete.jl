@@ -5,48 +5,58 @@
 
 """
     DiscreteBelief
-
 A belief specified by a probability vector.
-
 Normalization of `b` is NOT enforced at all times, but the `DiscreteBeleif(pomdp, b)` constructor will warn, and `update(...)` always returns a belief with normalized `b`.
 """
-struct DiscreteBelief{P<:POMDP, S}
-    pomdp::P
+struct DiscreteBelief{R<:RPOMDP, S}
+    pomdp::R
     state_list::Vector{S}       # vector of ordered states
     b::Vector{Float64}
 end
 
-function DiscreteBelief(pomdp, b::Vector{Float64}; check::Bool=true)
+function DiscreteBelief(rpomdp::RPOMDP, state_list::AbstractVector, b::AbstractVector{Float64}, check::Bool=true)
     if check
         if !isapprox(sum(b), 1.0, atol=0.001)
             warn("""
                  b in DiscreteBelief(pomdp, b) does not sum to 1.
-
                  To suppress this warning use `DiscreteBelief(pomdp, b, check=false)`
                  """)
         end
         if !all(0.0 <= p <= 1.0 for p in b)
             warn("""
                  b in DiscreteBelief(pomdp, b) contains entries outside [0,1].
-
                  To suppress this warning use `DiscreteBelief(pomdp, b, check=false)`
                  """)
         end
     end
-    return DiscreteBelief(pomdp, ordered_states(pomdp), b)
+    return DiscreteBelief(rpomdp, state_list, b)
+end
+
+function DiscreteBelief(rpomdp::RPOMDP, b::Vector{Float64}; check::Bool=true)
+    return DiscreteBelief(rpomdp, ordered_states(rpomdp), b, check)
+end
+
+function DiscreteBelief(rpomdp::RPOMDP, b; check::Bool=true)
+    # convert b to a vector representation
+    state_list = ordered_states(rpomdp)
+    bv = Vector{Float64}(n_states(rpomdp))
+    for (i, s) in enumerate(state_list)
+        bv[i] = pdf(b, s)
+    end
+    return DiscreteBelief(rpomdp, state_list, bv, check)
 end
 
 
 """
 Return a DiscreteBelief with equal probability for each state.
 """
-function uniform_belief(pomdp)
-    state_list = ordered_states(pomdp)
+function uniform_belief(rpomdp::RPOMDP)
+    state_list = ordered_states(rpomdp)
     ns = length(state_list)
-    return DiscreteBelief(pomdp, state_list, ones(ns) / ns)
+    return DiscreteBelief(rpomdp, state_list, ones(ns) / ns)
 end
 
-pdf(b::DiscreteBelief, s) = b.b[state_index(b.pomdp, s)]
+pdf(b::DiscreteBelief, s) = b.b[state_index(b.rpomdp, s)]
 
 function rand(rng::AbstractRNG, b::DiscreteBelief)
     i = sample(rng, Weights(b.b))
@@ -66,26 +76,26 @@ iterator(b::DiscreteBelief) = b.state_list
 
 Base.hash(b::DiscreteBelief, h::UInt) = hash(b.b, hash(b.state_list, h))
 
-mutable struct DiscreteUpdater{P<:POMDP} <: Updater
-    pomdp::P
+mutable struct DiscreteUpdater{R<:RPOMDP} <: Updater
+    rpomdp::R
 end
 
-uniform_belief(up::DiscreteUpdater) = uniform_belief(up.pomdp)
+uniform_belief(up::DiscreteUpdater) = uniform_belief(up.rpomdp)
 
 function initialize_belief(bu::DiscreteUpdater, dist::Any)
-    state_list = ordered_states(bu.pomdp)
+    state_list = ordered_states(bu.rpomdp)
     ns = length(state_list)
     b = zeros(ns)
-    belief = DiscreteBelief(bu.pomdp, state_list, b)
+    belief = DiscreteBelief(bu.rpomdp, state_list, b)
     for s in iterator(dist)
-        sidx = state_index(bu.pomdp, s)
+        sidx = state_index(bu.rpomdp, s)
         belief.b[sidx] = pdf(dist, s)
     end
     return belief
 end
 
 function update(bu::DiscreteUpdater, b::DiscreteBelief, a, o)
-    pomdp = b.pomdp
+    pomdp = b.rpomdp
     state_space = b.state_list
     bp = zeros(length(state_space))
 
@@ -115,18 +125,16 @@ function update(bu::DiscreteUpdater, b::DiscreteBelief, a, o)
     if bp_sum == 0.0
         error("""
               Failed discrete belief update: new probabilities sum to zero.
-
               b = $b
               a = $a
               o = $o
-
               Failed discrete belief update: new probabilities sum to zero.
               """)
     else
         bp ./= bp_sum
     end
 
-    return DiscreteBelief(pomdp, b.state_list, bp)
+    return DiscreteBelief(rpomdp, b.state_list, bp)
 end
 
 update(bu::DiscreteUpdater, b::Any, a, o) = update(bu, initialize_belief(bu, b), a, o)
@@ -145,7 +153,7 @@ end
     Core.println("WARNING: product(alphas, b::DiscreteBelief) is deprecated.")
     quote
         @assert size(alphas, 1) == length(b) "Alpha and belief sizes not equal"
-        n = size(alphas, 2) 
+        n = size(alphas, 2)
         util = zeros(n)
         for i = 1:n
             s = 0.0
@@ -157,4 +165,3 @@ end
         return util
     end
 end
-

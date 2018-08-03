@@ -71,15 +71,15 @@ function Sim(mdp::MDP,
             )
 
     if initial_state == nothing && state_type(mdp) != Void
-        is = POMDPs.initial_state(mdp, rng) 
+        is = POMDPs.initial_state(mdp, rng)
     else
         is = initial_state
     end
     return MDPSim(simulator, mdp, policy, is, metadata)
 end
 
-POMDPs.simulate(s::POMDPSim) = simulate(s.simulator, s.pomdp, s.policy, s.updater, s.initial_belief, s.initial_state)
-POMDPs.simulate(s::MDPSim) = simulate(s.simulator, s.mdp, s.policy, s.initial_state)
+RPOMDPs.simulate(s::POMDPSim) = simulate(s.simulator, s.pomdp, s.policy, s.updater, s.initial_belief, s.initial_state)
+RPOMDPs.simulate(s::MDPSim) = simulate(s.simulator, s.mdp, s.policy, s.initial_state)
 
 default_process(s::Sim, r::Float64) = :reward=>r
 default_process(s::Sim, hist::SimHistory) = default_process(s, discounted_reward(hist))
@@ -125,7 +125,7 @@ function run_parallel(process::Function, queue::AbstractVector;
     np = nprocs()
     if np == 1 && proc_warn
         warn("""
-             run_parallel(...) was started with only 1 process, so simulations will be run in serial. 
+             run_parallel(...) was started with only 1 process, so simulations will be run in serial.
 
              To supress this warning, use run_parallel(..., proc_warn=false).
 
@@ -139,7 +139,7 @@ function run_parallel(process::Function, queue::AbstractVector;
     frame_lines = Vector{Any}(n)
     nextidx() = (idx=i; i+=1; idx)
     prog_lock = ReentrantLock()
-    @sync begin 
+    @sync begin
         for p in 1:np
             if np == 1 || p != myid()
                 @async begin

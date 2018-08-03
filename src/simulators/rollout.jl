@@ -46,17 +46,17 @@ function RolloutSimulator(rng::AbstractRNG, is::Nullable{Any}, eps::Nullable{Flo
     return RolloutSimulator(rng, ms, eps, is)
 end
 
-@POMDP_require simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy) begin
-    @req updater(::typeof(policy))
-    bu = updater(policy)
-    @subreq simulate(sim, pomdp, policy, bu)
-end
-
-@POMDP_require simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, bu::Updater) begin
-    @req initial_state_distribution(::typeof(pomdp))
-    dist = initial_state_distribution(pomdp)
-    @subreq simulate(sim, pomdp, policy, bu, dist)
-end
+# @POMDP_require simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy) begin
+#     @req updater(::typeof(policy))
+#     bu = updater(policy)
+#     @subreq simulate(sim, pomdp, policy, bu)
+# end
+#
+# @POMDP_require simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, bu::Updater) begin
+#     @req initial_state_distribution(::typeof(pomdp))
+#     dist = initial_state_distribution(pomdp)
+#     @subreq simulate(sim, pomdp, policy, bu, dist)
+# end
 
 function simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, bu::Updater=updater(policy))
     dist = initial_state_distribution(pomdp)
@@ -64,10 +64,10 @@ function simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, bu::Updat
 end
 
 
-@POMDP_require simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, updater::Updater, initial_belief) begin
-    @req rand(::typeof(sim.rng), ::typeof(initial_belief))
-    @subreq simulate(sim, pomdp, policy, updater, initial_belief, s)
-end
+# @POMDP_require simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, updater::Updater, initial_belief) begin
+#     @req rand(::typeof(sim.rng), ::typeof(initial_belief))
+#     @subreq simulate(sim, pomdp, policy, updater, initial_belief, s)
+# end
 
 function simulate{S}(sim::RolloutSimulator, pomdp::POMDP{S}, policy::Policy, updater::Updater, initial_belief)
 
@@ -80,19 +80,19 @@ function simulate{S}(sim::RolloutSimulator, pomdp::POMDP{S}, policy::Policy, upd
     return simulate(sim, pomdp, policy, updater, initial_belief, s)
 end
 
-@POMDP_require simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, updater::Updater, initial_belief, s) begin
-    P = typeof(pomdp)
-    S = state_type(P)
-    A = action_type(P)
-    O = obs_type(P)
-    @req initialize_belief(::typeof(updater), ::typeof(initial_belief))
-    @req isterminal(::P, ::S)
-    @req discount(::P)
-    @req generate_sor(::P, ::S, ::A, ::typeof(sim.rng))
-    b = initialize_belief(updater, initial_belief)
-    @req action(::typeof(policy), ::typeof(b))
-    @req update(::typeof(updater), ::typeof(b), ::A, ::O)
-end
+# @POMDP_require simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, updater::Updater, initial_belief, s) begin
+#     P = typeof(pomdp)
+#     S = state_type(P)
+#     A = action_type(P)
+#     O = obs_type(P)
+#     @req initialize_belief(::typeof(updater), ::typeof(initial_belief))
+#     @req isterminal(::P, ::S)
+#     @req discount(::P)
+#     @req generate_sor(::P, ::S, ::A, ::typeof(sim.rng))
+#     b = initialize_belief(updater, initial_belief)
+#     @req action(::typeof(policy), ::typeof(b))
+#     @req update(::typeof(updater), ::typeof(b), ::A, ::O)
+# end
 
 function simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, updater::Updater, initial_belief, s)
 
@@ -125,23 +125,23 @@ function simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, updater::
     return r_total
 end
 
-@POMDP_require simulate(sim::RolloutSimulator, mdp::MDP, policy::Policy) begin
-    if isnull(sim.initial_state)
-        @req initial_state(::typeof(mdp), ::typeof(sim.rng))
-    end
-    istate = initial_state(mdp, sim.rng)
-    @subreq simulate(sim, mdp, policy, istate)
-end
-
-@POMDP_require simulate(sim::RolloutSimulator, mdp::MDP, policy::Policy, initial_state) begin
-    P = typeof(mdp)
-    S = typeof(initial_state)
-    A = action_type(mdp)
-    @req isterminal(::P, ::S)
-    @req action(::typeof(policy), ::S)
-    @req generate_sr(::P, ::S, ::A, ::typeof(sim.rng))
-    @req discount(::P)
-end
+# @POMDP_require simulate(sim::RolloutSimulator, mdp::MDP, policy::Policy) begin
+#     if isnull(sim.initial_state)
+#         @req initial_state(::typeof(mdp), ::typeof(sim.rng))
+#     end
+#     istate = initial_state(mdp, sim.rng)
+#     @subreq simulate(sim, mdp, policy, istate)
+# end
+#
+# @POMDP_require simulate(sim::RolloutSimulator, mdp::MDP, policy::Policy, initial_state) begin
+#     P = typeof(mdp)
+#     S = typeof(initial_state)
+#     A = action_type(mdp)
+#     @req isterminal(::P, ::S)
+#     @req action(::typeof(policy), ::S)
+#     @req generate_sr(::P, ::S, ::A, ::typeof(sim.rng))
+#     @req discount(::P)
+# end
 
 function simulate(sim::RolloutSimulator, mdp::MDP, policy::Policy)
     istate=get(sim.initial_state, initial_state(mdp, sim.rng))
