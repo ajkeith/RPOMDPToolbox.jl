@@ -8,13 +8,13 @@
 A belief specified by a probability vector.
 Normalization of `b` is NOT enforced at all times, but the `DiscreteBeleif(pomdp, b)` constructor will warn, and `update(...)` always returns a belief with normalized `b`.
 """
-struct DiscreteBelief{R<:RPOMDP, S}
+struct DiscreteBelief{R<:Union{RPOMDP,POMDP}, S}
     pomdp::R
     state_list::Vector{S}       # vector of ordered states
     b::Vector{Float64}
 end
 
-function DiscreteBelief(rpomdp::RPOMDP, state_list::AbstractVector, b::AbstractVector{Float64}, check::Bool=true)
+function DiscreteBelief(rpomdp::Union{RPOMDP,POMDP}, state_list::AbstractVector, b::AbstractVector{Float64}, check::Bool=true)
     if check
         if !isapprox(sum(b), 1.0, atol=0.001)
             warn("""
@@ -32,11 +32,11 @@ function DiscreteBelief(rpomdp::RPOMDP, state_list::AbstractVector, b::AbstractV
     return DiscreteBelief(rpomdp, state_list, b)
 end
 
-function DiscreteBelief(rpomdp::RPOMDP, b::Vector{Float64}; check::Bool=true)
+function DiscreteBelief(rpomdp::Union{RPOMDP,POMDP}, b::Vector{Float64}; check::Bool=true)
     return DiscreteBelief(rpomdp, ordered_states(rpomdp), b, check)
 end
 
-function DiscreteBelief(rpomdp::RPOMDP, b; check::Bool=true)
+function DiscreteBelief(rpomdp::Union{RPOMDP,POMDP}, b; check::Bool=true)
     # convert b to a vector representation
     state_list = ordered_states(rpomdp)
     bv = Vector{Float64}(n_states(rpomdp))
@@ -50,7 +50,7 @@ end
 """
 Return a DiscreteBelief with equal probability for each state.
 """
-function uniform_belief(rpomdp::RPOMDP)
+function uniform_belief(rpomdp::Union{RPOMDP,POMDP})
     state_list = ordered_states(rpomdp)
     ns = length(state_list)
     return DiscreteBelief(rpomdp, state_list, ones(ns) / ns)
