@@ -4,16 +4,16 @@
 # implements policy that is a set of alpha vectors
 ######################################################################
 
-struct AlphaVectorPolicy{P<:POMDP, A} <: Policy
+struct AlphaVectorPolicy{P<:Union{RPOMDP,POMDP}, A} <: Policy
     pomdp::P
     alphas::Vector{Vector{Float64}}
     action_map::Vector{A}
 end
-function AlphaVectorPolicy(pomdp::POMDP, alphas)
+function AlphaVectorPolicy(pomdp::Union{RPOMDP,POMDP}, alphas)
     AlphaVectorPolicy(pomdp, alphas, ordered_actions(pomdp))
 end
 # assumes alphas is |S| x |A|
-function AlphaVectorPolicy(p::POMDP, alphas::Matrix{Float64}, action_map)
+function AlphaVectorPolicy(p::Union{RPOMDP,POMDP}, alphas::Matrix{Float64}, action_map)
     # turn alphas into vector of vectors
     num_actions = size(alphas, 2)
     alpha_vecs = Vector{Float64}[]
