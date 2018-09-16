@@ -3,18 +3,19 @@
 # needs pomdp for state_index in pdf(b, s)
 # needs list of ordered_states for rand(b)
 
+# TO DO: P <: Union{POMDP,IPOMDP,RPOMDP,RIPOMDP} ?
 """
     DiscreteBelief
 A belief specified by a probability vector.
 Normalization of `b` is NOT enforced at all times, but the `DiscreteBeleif(pomdp, b)` constructor will warn, and `update(...)` always returns a belief with normalized `b`.
 """
-struct DiscreteBelief{R<:Union{RPOMDP,POMDP}, S}
-    pomdp::R
+struct DiscreteBelief{P, S}
+    pomdp::P
     state_list::Vector{S}       # vector of ordered states
     b::Vector{Float64}
 end
 
-function DiscreteBelief(rpomdp::Union{RPOMDP,POMDP}, state_list::AbstractVector, b::AbstractVector{Float64}, check::Bool=true)
+function DiscreteBelief(prob::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP}, state_list::AbstractVector, b::AbstractVector{Float64}, check::Bool)
     if check
         if !isapprox(sum(b), 1.0, atol=0.001)
             warn("""
@@ -29,34 +30,34 @@ function DiscreteBelief(rpomdp::Union{RPOMDP,POMDP}, state_list::AbstractVector,
                  """)
         end
     end
-    return DiscreteBelief(rpomdp, state_list, b)
+    return DiscreteBelief(prob, state_list, b)
 end
 
-function DiscreteBelief(rpomdp::Union{RPOMDP,POMDP}, b::Vector{Float64}; check::Bool=true)
-    return DiscreteBelief(rpomdp, ordered_states(rpomdp), b, check)
+function DiscreteBelief(prob::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP}, b::Vector{Float64}; check::Bool=true)
+    return DiscreteBelief(prob, ordered_states(prob), b, check)
 end
 
-function DiscreteBelief(rpomdp::Union{RPOMDP,POMDP}, b; check::Bool=true)
+function DiscreteBelief(prob::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP}, b; check::Bool=true)
     # convert b to a vector representation
-    state_list = ordered_states(rpomdp)
-    bv = Vector{Float64}(n_states(rpomdp))
+    state_list = ordered_states(prob)
+    bv = Vector{Float64}(n_states(prob))
     for (i, s) in enumerate(state_list)
         bv[i] = pdf(b, s)
     end
-    return DiscreteBelief(rpomdp, state_list, bv, check)
+    return DiscreteBelief(prob, state_list, bv, check)
 end
 
 
 """
 Return a DiscreteBelief with equal probability for each state.
 """
-function uniform_belief(rpomdp::Union{RPOMDP,POMDP})
-    state_list = ordered_states(rpomdp)
+function uniform_belief(prob::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP})
+    state_list = ordered_states(prob)
     ns = length(state_list)
-    return DiscreteBelief(rpomdp, state_list, ones(ns) / ns)
+    return DiscreteBelief(prob, state_list, ones(ns) / ns)
 end
 
-pdf(b::DiscreteBelief, s) = b.b[state_index(b.rpomdp, s)]
+pdf(b::DiscreteBelief, s) = b.b[state_index(b.pomdp, s)]
 
 function rand(rng::AbstractRNG, b::DiscreteBelief)
     i = sample(rng, Weights(b.b))
@@ -76,26 +77,27 @@ iterator(b::DiscreteBelief) = b.state_list
 
 Base.hash(b::DiscreteBelief, h::UInt) = hash(b.b, hash(b.state_list, h))
 
-mutable struct DiscreteUpdater{R<:RPOMDP} <: Updater
-    rpomdp::R
+# TO DO: P <: Union{POMDP,IPOMDP,RPOMDP,RIPOMDP} ?
+mutable struct DiscreteUpdater{P} <: Updater
+    pomdp::P
 end
 
-uniform_belief(up::DiscreteUpdater) = uniform_belief(up.rpomdp)
+uniform_belief(up::DiscreteUpdater) = uniform_belief(up.pomdp)
 
 function initialize_belief(bu::DiscreteUpdater, dist::Any)
-    state_list = ordered_states(bu.rpomdp)
+    state_list = ordered_states(bu.pomdp)
     ns = length(state_list)
     b = zeros(ns)
-    belief = DiscreteBelief(bu.rpomdp, state_list, b)
+    belief = DiscreteBelief(bu.pomdp, state_list, b)
     for s in iterator(dist)
-        sidx = state_index(bu.rpomdp, s)
+        sidx = state_index(bu.pomdp, s)
         belief.b[sidx] = pdf(dist, s)
     end
     return belief
 end
 
 function update(bu::DiscreteUpdater, b::DiscreteBelief, a, o)
-    pomdp = b.rpomdp
+    pomdp = b.pomdp
     state_space = b.state_list
     bp = zeros(length(state_space))
 
@@ -134,7 +136,7 @@ function update(bu::DiscreteUpdater, b::DiscreteBelief, a, o)
         bp ./= bp_sum
     end
 
-    return DiscreteBelief(rpomdp, b.state_list, bp)
+    return DiscreteBelief(pomdp, b.state_list, bp)
 end
 
 update(bu::DiscreteUpdater, b::Any, a, o) = update(bu, initialize_belief(bu, b), a, o)

@@ -1,10 +1,10 @@
 module BeliefUpdaters
 
-using POMDPs
-import POMDPs: Updater, update, initialize_belief, pdf, mode, updater, iterator
+using RPOMDPs
+import RPOMDPs: Updater, update, initialize_belief, pdf, mode, updater, iterator
 import Base: rand, rand!, mean, ==
 
-using POMDPToolbox.ordered_states
+using RPOMDPToolbox.ordered_states
 using StatsBase
 
 export

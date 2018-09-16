@@ -58,7 +58,7 @@ end
 #     @subreq simulate(sim, pomdp, policy, bu, dist)
 # end
 
-function simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, bu::Updater=updater(policy))
+function simulate(sim::RolloutSimulator, pomdp::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP}, policy::Policy, bu::Updater=updater(policy))
     dist = initial_state_distribution(pomdp)
     return simulate(sim, pomdp, policy, bu, dist)
 end
@@ -69,7 +69,7 @@ end
 #     @subreq simulate(sim, pomdp, policy, updater, initial_belief, s)
 # end
 
-function simulate{S}(sim::RolloutSimulator, pomdp::POMDP{S}, policy::Policy, updater::Updater, initial_belief)
+function simulate{S}(sim::RolloutSimulator, pomdp::Union{POMDP{S},IPOMDP{S},RPOMDP{S},RIPOMDP{S}}, policy::Policy, updater::Updater, initial_belief)
 
     if !isnull(sim.initial_state)
         s = convert(S, get(sim.initial_state))::S
@@ -120,6 +120,7 @@ function simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, updater::
 
         disc *= discount(pomdp)
         step += 1
+        # @show step
     end
 
     return r_total
