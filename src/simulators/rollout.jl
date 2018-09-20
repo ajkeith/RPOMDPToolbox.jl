@@ -94,7 +94,7 @@ end
 #     @req update(::typeof(updater), ::typeof(b), ::A, ::O)
 # end
 
-function simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, updater::Updater, initial_belief, s)
+function simulate(sim::RolloutSimulator, pomdp::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP}, policy::Policy, updater::Updater, initial_belief, s)
 
     eps = get(sim.eps, 0.0)
     max_steps = get(sim.max_steps, typemax(Int))
@@ -109,7 +109,7 @@ function simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, updater::
     while disc > eps && !isterminal(pomdp, s) && step <= max_steps # TODO also check for terminal observation
         a = action(policy, b)
 
-        sp, o, r = generate_sor(pomdp, s, a, sim.rng)
+        sp, o, r = generate_sor(pomdp, b.b, s, a, sim.rng)
 
         r_total += disc*r
 

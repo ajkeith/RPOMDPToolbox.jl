@@ -82,7 +82,15 @@ mutable struct DiscreteUpdater{P} <: Updater
     pomdp::P
 end
 
+mutable struct RobustUpdater{R} <: Updater
+    rpomdp::R
+    alphas::Vector{Vector{Float64}}
+end
+DiscreteUpdater(pomdp::Union{POMDP,IPOMDP}, alphas::Vector{Vector{Float64}}) = DiscreteUpdater(pomdp)
+DiscreteUpdater(rpomdp::Union{RPOMDP,RIPOMDP}, alphas::Vector{Vector{Float64}}) = RobustUpdater(rpomdp, alphas)
+
 uniform_belief(up::DiscreteUpdater) = uniform_belief(up.pomdp)
+uniform_belief(up::RobustUpdater) = uniform_belief(up.rpomdp)
 
 function initialize_belief(bu::DiscreteUpdater, dist::Any)
     state_list = ordered_states(bu.pomdp)
@@ -91,6 +99,18 @@ function initialize_belief(bu::DiscreteUpdater, dist::Any)
     belief = DiscreteBelief(bu.pomdp, state_list, b)
     for s in iterator(dist)
         sidx = state_index(bu.pomdp, s)
+        belief.b[sidx] = pdf(dist, s)
+    end
+    return belief
+end
+
+function initialize_belief(bu::RobustUpdater, dist::Any)
+    state_list = ordered_states(bu.rpomdp)
+    ns = length(state_list)
+    b = zeros(ns)
+    belief = DiscreteBelief(bu.rpomdp, state_list, b)
+    for s in iterator(dist)
+        sidx = state_index(bu.rpomdp, s)
         belief.b[sidx] = pdf(dist, s)
     end
     return belief
@@ -139,7 +159,63 @@ function update(bu::DiscreteUpdater, b::DiscreteBelief, a, o)
     return DiscreteBelief(pomdp, b.state_list, bp)
 end
 
-update(bu::DiscreteUpdater, b::Any, a, o) = update(bu, initialize_belief(bu, b), a, o)
+# Eq. (5) Osogami 2015
+# from p[t,z,s,a] to p[t,z,s]
+function minutil(prob::Union{RPOMDP,RIPOMDP}, b::Vector{Float64}, a, alphavecs::Vector{Vector{Float64}})
+   nz = n_observations(prob)
+   ns = n_states(prob)
+   nα = length(alphavecs)
+   aind = action_index(prob, a)
+   plower, pupper = dynamics(prob)
+   m = Model(solver = ClpSolver())
+   @variable(m, u[1:nz])
+   @variable(m, p[1:ns, 1:nz, 1:ns])
+   @objective(m, Min, sum(u))
+   for zind = 1:nz, αind = 1:nα
+       @constraint(m, u[zind] >= sum(b[sind] * p[:,zind,sind]' * alphavecs[αind] for sind = 1:ns))
+   end
+   @constraint(m, p .<= pupper[:,:,:,aind])
+   @constraint(m, p .>= plower[:,:,:,aind])
+   for sind = 1:ns
+       @constraint(m, sum(p[:,:,sind]) == 1)
+   end
+   JuMP.solve(m)
+   getvalue(u), getvalue(p)
+end
+
+function update(bu::RobustUpdater, b::DiscreteBelief, a, o)
+    rpomdp = b.pomdp
+    state_space = b.state_list
+    bp = zeros(length(state_space))
+    oi = obs_index(rpomdp, o)
+    bp_sum = 0.0   # to normalize the distribution
+    umin, pmin = minutil(rpomdp, b.b, a, bu.alphas)
+    for (spi, sp) in enumerate(state_space)
+        po = sum(pmin[spi,oi,:]) / sum(pmin[spi,:,:])
+        (po == 0.0) && continue
+        b_sum = 0.0
+        for (si, s) in enumerate(state_space)
+            pp = sum(pmin[spi,:,si]) / sum(pmin[spi,:,:])
+            b_sum += pp * b.b[si]
+        end
+        bp[spi] = po * b_sum
+        bp_sum += bp[spi]
+    end
+    if bp_sum == 0.0
+        error("""
+              Failed discrete belief update: new probabilities sum to zero.
+              b = $b
+              a = $a
+              o = $o
+              Failed discrete belief update: new probabilities sum to zero.
+              """)
+    else
+        bp ./= bp_sum
+    end
+    return DiscreteBelief(rpomdp, b.state_list, bp)
+end
+
+update(bu::Union{RobustUpdater,DiscreteUpdater}, b::Any, a, o) = update(bu, initialize_belief(bu, b), a, o)
 
 
 # DEPRECATED

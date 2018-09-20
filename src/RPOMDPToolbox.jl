@@ -1,4 +1,4 @@
-__precompile__()
+# __precompile__()
 
 
 module RPOMDPToolbox
@@ -23,6 +23,7 @@ import DataStructures: CircularBuffer, isfull, capacity, push!, append!
 using ProgressMeter
 using StatsBase
 using DataFrames
+using JuMP, Clp
 
 
 # export commons
@@ -48,6 +49,7 @@ include("beliefs/void.jl")
 export
     DiscreteBelief,
     DiscreteUpdater,
+    RobustUpdater,
     uniform_belief,
     product
 include("beliefs/discrete.jl")

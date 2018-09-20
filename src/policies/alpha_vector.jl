@@ -26,7 +26,7 @@ end
 
 
 
-updater(p::AlphaVectorPolicy) = DiscreteUpdater(p.pomdp)
+updater(p::AlphaVectorPolicy) = DiscreteUpdater(p.pomdp, p.alphas)
 
 value(p::AlphaVectorPolicy, b::DiscreteBelief) = value(p, b.b)
 function value(p::AlphaVectorPolicy, b::Vector{Float64})
