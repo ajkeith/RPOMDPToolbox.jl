@@ -16,7 +16,7 @@ import RPOMDPs: Updater, update, initialize_belief, pdf, mode, updater
 import RPOMDPs: Simulator, simulate
 import RPOMDPs: action, value, solve
 import RPOMDPs: actions, action_index, state_index, obs_index, iterator, sampletype, states, n_actions, n_states, observations, n_observations, discount, isterminal
-import RPOMDPs: generate_sr, initial_state
+import RPOMDPs: generate_sr, initial_state, generate_sor, initial_state_distribution
 import Base: rand, rand!, mean, ==
 import DataStructures: CircularBuffer, isfull, capacity, push!, append!
 

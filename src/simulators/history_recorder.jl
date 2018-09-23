@@ -52,7 +52,7 @@ function HistoryRecorder(;rng=MersenneTwister(rand(UInt32)),
 end
 
 function simulate(sim::HistoryRecorder, pomdp::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP}, policy::Policy, bu::Updater=updater(policy))
-    dist = initial_state_distribution(pomdp)
+    dist = RPOMDPs.initial_state_distribution(pomdp)
     return simulate(sim, pomdp, policy, bu, dist)
 end
 

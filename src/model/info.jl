@@ -16,7 +16,7 @@ Return a tuple containing the next state, observation, and reward and informatio
 By default, returns `nothing` as info.
 """
 function generate_sori(p::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP}, b, s, a, rng::AbstractRNG)
-    return generate_sor(p, b, s, a, rng)..., nothing
+    return RPOMDPs.generate_sor(p, b, s, a, rng)..., nothing
 end
 
 """
