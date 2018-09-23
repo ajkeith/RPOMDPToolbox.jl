@@ -126,24 +126,6 @@ function simulate(sim::RolloutSimulator, pomdp::Union{POMDP,IPOMDP,RPOMDP,RIPOMD
     return r_total
 end
 
-# @POMDP_require simulate(sim::RolloutSimulator, mdp::MDP, policy::Policy) begin
-#     if isnull(sim.initial_state)
-#         @req initial_state(::typeof(mdp), ::typeof(sim.rng))
-#     end
-#     istate = initial_state(mdp, sim.rng)
-#     @subreq simulate(sim, mdp, policy, istate)
-# end
-#
-# @POMDP_require simulate(sim::RolloutSimulator, mdp::MDP, policy::Policy, initial_state) begin
-#     P = typeof(mdp)
-#     S = typeof(initial_state)
-#     A = action_type(mdp)
-#     @req isterminal(::P, ::S)
-#     @req action(::typeof(policy), ::S)
-#     @req generate_sr(::P, ::S, ::A, ::typeof(sim.rng))
-#     @req discount(::P)
-# end
-
 function simulate(sim::RolloutSimulator, mdp::MDP, policy::Policy)
     istate=get(sim.initial_state, initial_state(mdp, sim.rng))
     simulate(sim, mdp, policy, istate)

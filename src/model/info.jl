@@ -13,10 +13,10 @@ end
 """
 Return a tuple containing the next state, observation, and reward and information (usually a `Dict` or `nothing`) from that step.
 
-By default, returns `nothing` as info. 
+By default, returns `nothing` as info.
 """
-function generate_sori(p::POMDP, s, a, rng::AbstractRNG)
-    return generate_sor(p, s, a, rng)..., nothing
+function generate_sori(p::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP}, b, s, a, rng::AbstractRNG)
+    return generate_sor(p, b, s, a, rng)..., nothing
 end
 
 """
@@ -37,7 +37,7 @@ Return a tuple containing the policy determined by a solver and information (usu
 
 By default, returns `nothing` as info.
 """
-function solve_info(s::Solver, problem::Union{POMDP,MDP})
+function solve_info(s::Solver, problem::Union{MDP,POMDP,IPOMDP,RPOMDP,RIPOMDP})
     return solve(s, problem), nothing
 end
 
