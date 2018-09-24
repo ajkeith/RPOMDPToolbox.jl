@@ -120,30 +120,23 @@ function update(bu::DiscreteUpdater, b::DiscreteBelief, a, o)
     pomdp = b.pomdp
     state_space = b.state_list
     bp = zeros(length(state_space))
-
     bp_sum = 0.0   # to normalize the distribution
-
     for (spi, sp) in enumerate(state_space)
-
         # po = O(a, sp, o)
         od = observation(pomdp, a, sp)
         po = pdf(od, o)
-
         if po == 0.0
             continue
         end
-
         b_sum = 0.0
         for (si, s) in enumerate(state_space)
             td = transition(pomdp, s, a)
             pp = pdf(td, sp)
             b_sum += pp * b.b[si]
         end
-
         bp[spi] = po * b_sum
         bp_sum += bp[spi]
     end
-
     if bp_sum == 0.0
         error("""
               Failed discrete belief update: new probabilities sum to zero.
