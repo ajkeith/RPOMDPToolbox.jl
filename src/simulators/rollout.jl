@@ -105,9 +105,13 @@ function simulate(sim::RolloutSimulator, pomdp::Union{POMDP,IPOMDP,RPOMDP,RIPOMD
     b = initialize_belief(updater, initial_belief)
 
     step = 1
-
+    bcorrect = 0
     while disc > eps && !isterminal(pomdp, s) && step <= max_steps # TODO also check for terminal observation
         a = action(policy, b)
+        # println("State: $s Belief: $(b.b)")
+        if s == b.state_list[findmax(b.b)[2]]
+            bcorrect += 1
+        end
 
         sp, o, r = generate_sor(pomdp, b.b, s, a, sim.rng)
 
@@ -122,8 +126,8 @@ function simulate(sim::RolloutSimulator, pomdp::Union{POMDP,IPOMDP,RPOMDP,RIPOMD
         step += 1
         # @show step
     end
-
-    return r_total
+    pcorrect = bcorrect/step
+    return r_total, pcorrect
 end
 
 function simulate(sim::RolloutSimulator, mdp::MDP, policy::Policy)
