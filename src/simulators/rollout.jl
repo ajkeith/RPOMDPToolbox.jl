@@ -29,7 +29,7 @@ struct RolloutSimulator{RNG<:AbstractRNG} <: Simulator
 end
 
 # These are the only safe constructors to use
-RolloutSimulator(rng::AbstractRNG, d::Int=typemax(Int)) = RolloutSimulator(rng, Nullable{Int}(d), Nullable{Float64}(), Nullable{Any}())
+RolloutSimulator(rng::AbstractRNG, d::Int=typemax(Int)) = RolloutSimulator(alphas, rng, Nullable{Int}(d), Nullable{Float64}(), Nullable{Any}())
 function RolloutSimulator(;rng=MersenneTwister(rand(UInt32)),
                            initial_state=Nullable{Any}(),
                            eps=Nullable{Float64}(),
@@ -94,37 +94,91 @@ end
 #     @req update(::typeof(updater), ::typeof(b), ::A, ::O)
 # end
 
-function simulate(sim::RolloutSimulator, pomdp::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP}, policy::Policy, updater::Updater, initial_belief, s)
+function minutil_gen(prob::Union{RPOMDP,RIPOMDP}, b::Vector{Float64}, a, alphavecs::Vector{Vector{Float64}})
+    nz = n_observations(prob)
+    ns = n_states(prob)
+    nα = length(alphavecs)
+    aind = action_index(prob, a)
+    plower, pupper = dynamics(prob)
+    m = Model(solver = ClpSolver())
+    @variable(m, u[1:nz])
+    @variable(m, p[1:ns, 1:nz, 1:ns])
+    @objective(m, Min, sum(u))
+    for zind = 1:nz, αind = 1:nα
+        @constraint(m, u[zind] >= sum(b[sind] * p[:,zind,sind]' * alphavecs[αind] for sind = 1:ns))
+    end
+    @constraint(m, p .<= pupper[:,:,:,aind])
+    @constraint(m, p .>= plower[:,:,:,aind])
+    for sind = 1:ns
+        @constraint(m, sum(p[:,:,sind]) == 1)
+    end
+    JuMP.solve(m)
+    getvalue(u), getvalue(p)
+end
 
+function generate_sor_worst(prob::RIPOMDP, b, s, a, rng::AbstractRNG, alphavecs)
+    u, p = minutil_gen(prob, b, a, alphavecs)
+    sind = state_index(prob, s)
+    tdist = SparseCat(states(prob), [sum(p[1,:,sind])/sum(p[:,:,sind]), sum(p[2,:,sind])/sum(p[:,:,sind])])
+    sp = rand(rng, tdist)
+    odenom = sum(p[:,:,sind])
+    oarray = [sum(p[:,1,sind]), sum(p[:,1,sind]), sum(p[:,1,sind]),
+                sum(p[:,1,sind]), sum(p[:,1,sind]), sum(p[:,1,sind])] ./ odenom
+    odist = SparseCat(observations(prob), oarray)
+    o = rand(rng, odist)
+    r = reward(prob, b, s, a, sp)
+    sp, o, r
+end
+
+function simulate(sim::RolloutSimulator, pomdp::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP}, policy::Policy, updater::Updater, initial_belief, s)
     eps = get(sim.eps, 0.0)
     max_steps = get(sim.max_steps, typemax(Int))
-
     disc = 1.0
     r_total = 0.0
-
     b = initialize_belief(updater, initial_belief)
-
     step = 1
     bcorrect = 0
     while disc > eps && !isterminal(pomdp, s) && step <= max_steps # TODO also check for terminal observation
         a = action(policy, b)
-        # println("State: $s Belief: $(b.b)")
+        # println("State: $s    Belief: $(b.b)    Action: $a")
         if s == b.state_list[findmax(b.b)[2]]
             bcorrect += 1
         end
-
         sp, o, r = generate_sor(pomdp, b.b, s, a, sim.rng)
-
         r_total += disc*r
-
         s = sp
-
         bp = update(updater, b, a, o)
         b = bp
-
         disc *= discount(pomdp)
         step += 1
-        # @show step
+    end
+    pcorrect = bcorrect/step
+    return r_total, pcorrect
+end
+
+function simulate_worst(sim::RolloutSimulator, pomdp::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP}, policy::Policy, updater::Updater, alphas::Vector{Vector{Float64}})
+    initial_belief = initial_state_distribution(pomdp)
+    s = rand(sim.rng, initial_belief)
+    eps = get(sim.eps, 0.0)
+    max_steps = get(sim.max_steps, typemax(Int))
+    disc = 1.0
+    r_total = 0.0
+    b = initialize_belief(updater, initial_belief)
+    step = 1
+    bcorrect = 0
+    while disc > eps && !isterminal(pomdp, s) && step <= max_steps # TODO also check for terminal observation
+        a = action(policy, b)
+        # println("State: $s    Belief: $(b.b)    Action: $a")
+        if s == b.state_list[findmax(b.b)[2]]
+            bcorrect += 1
+        end
+        sp, o, r = generate_sor_worst(pomdp, b.b, s, a, sim.rng, alphas)
+        r_total += disc*r
+        s = sp
+        bp = update(updater, b, a, o)
+        b = bp
+        disc *= discount(pomdp)
+        step += 1
     end
     pcorrect = bcorrect/step
     return r_total, pcorrect

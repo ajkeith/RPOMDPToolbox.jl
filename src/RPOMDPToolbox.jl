@@ -34,6 +34,7 @@ export
     pdf,
     updater,
     simulate,
+    simulate_worst,
     action,
     solve
 
