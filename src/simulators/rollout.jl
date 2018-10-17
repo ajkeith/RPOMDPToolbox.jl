@@ -116,15 +116,17 @@ function minutil_gen(prob::Union{RPOMDP,RIPOMDP}, b::Vector{Float64}, a, alphave
     getvalue(u), getvalue(p)
 end
 
-function generate_sor_worst(prob::RIPOMDP, b, s, a, rng::AbstractRNG, alphavecs)
+function generate_sor_worst(prob::Union{RPOMDP,RIPOMDP}, b, s, a, rng::AbstractRNG, alphavecs)
     u, p = minutil_gen(prob, b, a, alphavecs)
     sind = state_index(prob, s)
-    tdist = SparseCat(states(prob), [sum(p[1,:,sind])/sum(p[:,:,sind]), sum(p[2,:,sind])/sum(p[:,:,sind])])
+    denom = sum(p[:,:,sind])
+    tarray = [sum(p[spi,:,sind]) for spi in 1:n_states(prob)] ./ denom
+    tdist = SparseCat(states(prob), tarray)
+    @show tdist
     sp = rand(rng, tdist)
-    odenom = sum(p[:,:,sind])
-    oarray = [sum(p[:,1,sind]), sum(p[:,1,sind]), sum(p[:,1,sind]),
-                sum(p[:,1,sind]), sum(p[:,1,sind]), sum(p[:,1,sind])] ./ odenom
+    oarray = [sum(p[:,zind,sind]) for zind in 1:n_observations(prob)] ./ denom
     odist = SparseCat(observations(prob), oarray)
+    @show odist
     o = rand(rng, odist)
     r = reward(prob, b, s, a, sp)
     sp, o, r
