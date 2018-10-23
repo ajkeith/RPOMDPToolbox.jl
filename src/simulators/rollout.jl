@@ -122,11 +122,11 @@ function generate_sor_worst(prob::Union{RPOMDP,RIPOMDP}, b, s, a, rng::AbstractR
     denom = sum(p[:,:,sind])
     tarray = [sum(p[spi,:,sind]) for spi in 1:n_states(prob)] ./ denom
     tdist = SparseCat(states(prob), tarray)
-    @show tdist
+    # @show tdist
     sp = rand(rng, tdist)
     oarray = [sum(p[:,zind,sind]) for zind in 1:n_observations(prob)] ./ denom
     odist = SparseCat(observations(prob), oarray)
-    @show odist
+    # @show odist
     o = rand(rng, odist)
     r = reward(prob, b, s, a, sp)
     sp, o, r
