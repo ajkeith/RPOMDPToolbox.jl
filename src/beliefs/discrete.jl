@@ -125,6 +125,7 @@ function update(bu::DiscreteUpdater, b::DiscreteBelief, a, o)
         # po = O(a, sp, o)
         od = observation(pomdp, a, sp)
         po = pdf(od, o)
+        # @show po
         if po == 0.0
             continue
         end
@@ -132,10 +133,12 @@ function update(bu::DiscreteUpdater, b::DiscreteBelief, a, o)
         for (si, s) in enumerate(state_space)
             td = transition(pomdp, s, a)
             pp = pdf(td, sp)
+            # @show pp
             b_sum += pp * b.b[si]
         end
         bp[spi] = po * b_sum
         bp_sum += bp[spi]
+        # @show bp_sum
     end
     if bp_sum == 0.0
         error("""
@@ -146,6 +149,7 @@ function update(bu::DiscreteUpdater, b::DiscreteBelief, a, o)
               Failed discrete belief update: new probabilities sum to zero.
               """)
     else
+        # @show bp
         bp ./= bp_sum
     end
 
@@ -183,16 +187,26 @@ function update(bu::RobustUpdater, b::DiscreteBelief, a, o)
     oi = obs_index(rpomdp, o)
     bp_sum = 0.0   # to normalize the distribution
     umin, pmin = minutil(rpomdp, b.b, a, bu.alphas)
+    # @show pmin
     for (spi, sp) in enumerate(state_space)
         po = sum(pmin[spi,oi,:]) / sum(pmin[spi,:,:])
+        # @show po
         (po == 0.0) && continue
         b_sum = 0.0
         for (si, s) in enumerate(state_space)
-            pp = sum(pmin[spi,:,si]) / sum(pmin[spi,:,:])
+            # pnumer = sum(pmin[spi,:,si])
+            # if pnumer < 1e-4
+            #     pp = pnumer
+            # else
+            #     pp = sum(pmin[spi,:,si]) / sum(pmin[:,:,si])
+            # end
+            pp = sum(pmin[spi,:,si]) / sum(pmin[:,:,si])
+            # @show pp
             b_sum += pp * b.b[si]
         end
         bp[spi] = po * b_sum
         bp_sum += bp[spi]
+        # @show bp_sum
     end
     if bp_sum == 0.0
         error("""
@@ -203,6 +217,7 @@ function update(bu::RobustUpdater, b::DiscreteBelief, a, o)
               Failed discrete belief update: new probabilities sum to zero.
               """)
     else
+        # @show bp
         bp ./= bp_sum
     end
     return DiscreteBelief(rpomdp, b.state_list, bp)

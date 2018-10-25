@@ -4,7 +4,7 @@ using Base.Test
 
 # using FIB
 
-pomdp = BabyPOMDP()
+pomdp = Baby2POMDP()
 
 # testing constructor
 b0 = DiscreteBelief(pomdp, [0.5,0.5])
@@ -44,22 +44,23 @@ b3 = DiscreteBelief(pomdp, [0.0,1.0])
 up = DiscreteUpdater(pomdp)
 isd = initial_state_distribution(pomdp)
 b4 = initialize_belief(up, isd)
-@test pdf(b4,true) == pdf(isd,true)
-@test pdf(b4,false) == pdf(isd,false)
+@test pdf(b4,:hungry) == pdf(isd,:hungry)
+@test pdf(b4,:full) == pdf(isd,:full)
 
 # testing update function; if we feed baby, it won't be hungry
-a = true
-o = true
+a = :feed
+o = :crying
 b4p = update(up, b4, a, o)
-@test pdf(b4p,true) == 0.0
-@test pdf(b4p,false) == 1.0
+@test pdf(b4p,:hungry) == 0.0
+@test pdf(b4p,:full) == 1.0
 
 # if we don't feed the baby and observe crying
-a = false
-o = true
-b4p = update(up, b4, false, true)
-@test isapprox(pdf(b4p,true), 0.470588, atol=1e-4)
-@test isapprox(pdf(b4p,false), 0.52941, atol=1e-4)
+a = :nothing
+o = :crying
+b4p = update(up, b4, :nothing, :crying)
+@show b4p.b
+@test isapprox(pdf(b4p,:hungry), 0.470588, atol=1e-4)
+@test isapprox(pdf(b4p,:full), 0.52941, atol=1e-4)
 
 # testing that it works in a solve/simulation loop
 # I'm not sure I need this test (could eliminate FIB dependency if not)
