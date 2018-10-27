@@ -126,9 +126,7 @@ function update(bu::DiscreteUpdater, b::DiscreteBelief, a, o)
         od = observation(pomdp, a, sp)
         po = pdf(od, o)
         # @show po
-        if po == 0.0
-            continue
-        end
+        (po == 0.0) && continue
         b_sum = 0.0
         for (si, s) in enumerate(state_space)
             td = transition(pomdp, s, a)
@@ -189,6 +187,7 @@ function update(bu::RobustUpdater, b::DiscreteBelief, a, o)
     umin, pmin = minutil(rpomdp, b.b, a, bu.alphas)
     # @show pmin
     for (spi, sp) in enumerate(state_space)
+        (sum(pmin[spi,:,:]) == 0.0) && continue
         po = sum(pmin[spi,oi,:]) / sum(pmin[spi,:,:])
         # @show po
         (po == 0.0) && continue
