@@ -132,7 +132,7 @@ function generate_sor_worst(prob::Union{RPOMDP,RIPOMDP}, b, s, a, rng::AbstractR
     sp, o, r
 end
 
-function simulate(sim::RolloutSimulator, pomdp::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP}, policy::Policy, updater::Updater, initial_belief, s)
+function simulate(sim::RolloutSimulator, pomdp::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP}, policy::Policy, updater::Updater, initial_belief, s; verbose = false)
     eps = get(sim.eps, 0.0)
     max_steps = get(sim.max_steps, typemax(Int))
     disc = 1.0
@@ -148,22 +148,24 @@ function simulate(sim::RolloutSimulator, pomdp::Union{POMDP,IPOMDP,RPOMDP,RIPOMD
             bcorrect += 1
         end
         sp, o, r = generate_sor(pomdp, b.b, s, a, sim.rng)
-        # @show b.b
-        # @show a
-        # @show o
-        # @show r
+        verbose && (@show b.b)
+        verbose && (@show a)
+        verbose && (@show o)
+        verbose && (@show r)
         r_total += disc*r
         s = sp
         bp = update(updater, b, a, o)
         b = bp
         disc *= discount(pomdp)
+        pcorrect_inner = bcorrect / step
+        verbose && (@show pcorrect_inner)
         step += 1
     end
     pcorrect = bcorrect/step
     return r_total, pcorrect
 end
 
-function simulate_worst(sim::RolloutSimulator, pomdp::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP}, policy::Policy, updater::Updater, alphas::Vector{Vector{Float64}})
+function simulate_worst(sim::RolloutSimulator, pomdp::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP}, policy::Policy, updater::Updater, alphas::Vector{Vector{Float64}}; verbose = false)
     initial_belief = initial_state_distribution(pomdp)
     s = rand(sim.rng, initial_belief)
     eps = get(sim.eps, 0.0)
@@ -180,6 +182,10 @@ function simulate_worst(sim::RolloutSimulator, pomdp::Union{POMDP,IPOMDP,RPOMDP,
             bcorrect += 1
         end
         sp, o, r = generate_sor_worst(pomdp, b.b, s, a, sim.rng, alphas)
+        verbose && (@show b.b)
+        verbose && (@show a)
+        verbose && (@show o)
+        verbose && (@show r)
         r_total += disc*r
         s = sp
         bp = update(updater, b, a, o)
@@ -194,7 +200,7 @@ end
 function simulate_worst(sim::RolloutSimulator,
         pomdp::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP}, policy::Policy,
         updater::Updater, initial_belief, s,
-        alphas::Vector{Vector{Float64}})
+        alphas::Vector{Vector{Float64}}; verbose = false)
     eps = get(sim.eps, 0.0)
     max_steps = get(sim.max_steps, typemax(Int))
     disc = 1.0
@@ -208,13 +214,55 @@ function simulate_worst(sim::RolloutSimulator,
             bcorrect += 1
         end
         sp, o, r = generate_sor_worst(pomdp, b.b, s, a, sim.rng, alphas)
-        # @show b.b
-        # @show a
-        # @show o
-        # @show r
+        verbose && (@show b.b)
+        verbose && (@show a)
+        verbose && (@show o)
+        verbose && (@show r)
         r_total += disc*r
         s = sp
         bp = update(updater, b, a, o)
+        b = bp
+        disc *= discount(pomdp)
+        pcorrect_inner = bcorrect / step
+        verbose && (@show pcorrect_inner)
+        step += 1
+    end
+    pcorrect = bcorrect/step
+    return r_total, pcorrect
+end
+
+# worst-case simulator that tracks hellinger distance
+function simulate_worst(sim::RolloutSimulator,
+        pomdp::Union{POMDP,IPOMDP,RPOMDP,RIPOMDP}, policy::Policy,
+        updater::Updater, reference_updater::Updater,
+        initial_belief, s,
+        alphas::Vector{Vector{Float64}}; verbose = false)
+    eps = get(sim.eps, 0.0)
+    max_steps = get(sim.max_steps, typemax(Int))
+    disc = 1.0
+    r_total = 0.0
+    b = initialize_belief(updater, initial_belief)
+    step = 1
+    bcorrect = 0
+    while disc > eps && !isterminal(pomdp, s) && step <= max_steps # TODO also check for terminal observation
+        a = action(policy, b)
+        if s == b.state_list[findmax(b.b)[2]]
+            bcorrect += 1
+        end
+        sp, o, r = generate_sor_worst(pomdp, b.b, s, a, sim.rng, alphas)
+        verbose && (@show b.b)
+        verbose && (@show a)
+        verbose && (@show o)
+        verbose && (@show r)
+        r_total += disc*r
+        s = sp
+        bp = update(updater, b, a, o)
+        bp_reference = update(reference_updater, b, a, o)
+        bdistance = hellinger(bp.b, bp_reference.b)
+        verbose && (@show bdistance)
+        bdistance_total += disc * bdistance
+        pcorrect_inner = bcorrect / step
+        verbose && (@show pcorrect_inner)
         b = bp
         disc *= discount(pomdp)
         step += 1
