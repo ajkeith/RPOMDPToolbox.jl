@@ -1,9 +1,3 @@
-# Goals: minimize calls to ordered_states (allocates memory)
-
-# needs pomdp for state_index in pdf(b, s)
-# needs list of ordered_states for rand(b)
-
-# TO DO: P <: Union{POMDP,IPOMDP,RPOMDP,RIPOMDP} ?
 """
     DiscreteBelief
 A belief specified by a probability vector.
@@ -77,7 +71,6 @@ iterator(b::DiscreteBelief) = b.state_list
 
 Base.hash(b::DiscreteBelief, h::UInt) = hash(b.b, hash(b.state_list, h))
 
-# TO DO: P <: Union{POMDP,IPOMDP,RPOMDP,RIPOMDP} ?
 mutable struct DiscreteUpdater{P} <: Updater
     pomdp::P
 end
