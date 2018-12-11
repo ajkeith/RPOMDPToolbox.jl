@@ -33,7 +33,7 @@ simval, simpercent = simulate(sim, rpomdp, policy, bu, binit, sinit)
 To solve robust POMDP models, see [RobustValueIteration](https://github.com/ajkeith/RobustValueIteration).
 
 ## References
-The robust POMDP environment is a direct extension of a fork of [POMDPToolbox.jl](https://github.com/JuliaPOMDP/POMDPToolbox.jl) to the robust setting. See [POMDPModelTools.jl](https://github.com/JuliaPOMDP/POMDPModelTools.jl) for the current version of the standard POMDP tools.
+The robust POMDP simluators and belief updaters extend a fork of [POMDPToolbox.jl](https://github.com/JuliaPOMDP/POMDPToolbox.jl) to the robust setting. See [POMDPModelTools.jl](https://github.com/JuliaPOMDP/POMDPModelTools.jl) for the current version of the standard POMDP tools.
 
 If this code is useful to you, please star this package and consider citing the following paper.
 
